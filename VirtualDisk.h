@@ -21,7 +21,7 @@ using namespace std;
 struct superBlock {
     short blockSize = BLOCK_SIZE;
     short freeBlocks = 0;
-    short freeInodes = 0;
+    short freeInodes = INODE_COUNT;
     short firstInode = FIRST_DATA_BLOCK_INDEX - 1;
 };
 
@@ -39,7 +39,6 @@ struct File {
 
 struct DataBlock {
     char buffer[BLOCK_SIZE];
-    bool inUse = false;
 };
 
 class VirtualDisk {
@@ -57,6 +56,7 @@ public:
     int size;
     array<INode, INODE_COUNT> inode_arr;
 
+    vector<short> findFreeBlocks(short requiredBlocksCount);
 };
 
 #endif //SOI6_CPP_VIRTUALDISK_H

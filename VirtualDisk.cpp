@@ -6,6 +6,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cmath>
+#include <memory.h>
 
 FILE *VirtualDisk::createVirtualDisk() {
     char buffer[this->size];
@@ -38,19 +39,24 @@ void VirtualDisk::writeFileToDisk(FILE *source, FILE *disk) {
     char *buffer = (char *)malloc(filelen * sizeof(char));
     fread(buffer, filelen, 1, source);
     fclose(source);
+
+
     auto *freeInode = std::find_if(this->inode_arr.begin(), this->inode_arr.end(), [&](const auto& inode) {
         return inode.linksCount == 0;
     });
 
-    cout << "freeInode: " << freeInode->linksCount << endl;
-    short blocksCount = ceil(filelen / BLOCK_SIZE);
-    fseek(disk,2*BLOCK_SIZE,0);
-    fwrite(buffer,filelen,1,disk);
-    free(buffer);
-    readInodeList(disk);
-    for(auto inode : this->inode_arr){
+    short requiredBlocksCount = ceil(static_cast<float>(filelen) / BLOCK_SIZE);
+    vector<short> blocksToWrite = findFreeBlocks(requiredBlocksCount);
 
+    for(short i : blocksToWrite) {
+        char tempBuffer[BLOCK_SIZE];
+        memcpy(tempBuffer, buffer, min(static_cast<long>(BLOCK_SIZE),filelen));
+        fseek(disk, i * BLOCK_SIZE ,0);
+        fwrite(tempBuffer,1,min(static_cast<long>(BLOCK_SIZE),filelen),disk);
+        filelen -= BLOCK_SIZE;
     }
+
+    free(buffer);
 }
 
 void VirtualDisk::readInodeList(FILE *disk) {
@@ -68,4 +74,27 @@ void VirtualDisk::readInodeList(FILE *disk) {
 void VirtualDisk::saveInodeList(FILE *disk){
     fseek(disk, BLOCK_SIZE * INODE_BLOCK_INDEX, 0);
     fwrite(&this->inode_arr, sizeof(INode), INODE_COUNT, disk);
+}
+
+vector<short> VirtualDisk::findFreeBlocks(short requiredBlocksCount){
+    std::vector<short> busyBlocks;
+    std::vector<short> blocksToWrite;
+    for (auto &inode : this->inode_arr) {
+        if (inode.linksCount != 0) {
+            for (auto &block : inode.blocks) {
+                if (block) {
+                    busyBlocks.push_back(block);
+                }
+            }
+        }
+    }
+
+    short i = FIRST_DATA_BLOCK_INDEX;
+    while (blocksToWrite.size() < requiredBlocksCount) {
+        if (std::find(busyBlocks.begin(), busyBlocks.end(), i) == busyBlocks.end()) {
+            blocksToWrite.push_back(i);
+        }
+        i++;
+    }
+    return blocksToWrite;
 }

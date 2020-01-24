@@ -10,25 +10,13 @@ int main() {
     vd.saveSuperBlock(disk);
     vd.saveInodeList(disk);
 
-    vd.sb.freeBlocks = 9;
-    vd.sb.freeInodes = 9;
-    vd.sb.firstInode = 9;
-    vd.sb.blockSize = 11;
-
-    for(auto &inode : vd.inode_arr){
-        inode.size = 9;
-        inode.linksCount = 9;
-        inode.type = 9;
-        for(auto &block : inode.blocks){
-            block = 9;
-        }
-    }
-    // Read superblock and inodes
     vd.readSuperBlock(disk);
     vd.readInodeList(disk);
+    FILE* source = fopen("../dupa_2500b", "rb");
+    vd.writeFileToDisk(source,disk);
 
     // Copy file
-//    FILE *source = fopen("../dupa_500b","r");
+//    FILE *source = fopen("../dupa_2500b","r");
 //    vd.writeFileToDisk(source,disk);
 //
 //
