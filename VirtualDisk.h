@@ -12,6 +12,7 @@
 #include <utility>
 #include <fstream>
 #include <vector>
+#include <array>
 
 using namespace std;
 
@@ -37,33 +38,25 @@ struct File {
 class VirtualDisk {
 public:
     VirtualDisk(string name, int size) : name(std::move(name)), size(size) {};
-    FILE * createVirtualDisk();
+    FILE *createVirtualDisk();
+    void readSuperBlock(FILE* file);
+    void readInodeList(FILE* file);
+    void writeFileToDisk(FILE* source, FILE* disk);
 
     const string &getName() const;
-
     void setName(const string &name);
-
     int getSize() const;
-
     void setSize(int size);
-
     const vector<INode> &getInodes() const;
-
-    void setInodes(const vector<INode> &inodes);
-
-private:
-    superBlock sb;
-public:
     const superBlock &getSb() const;
-
     void setSb(const superBlock &sb);
 
 private:
+    superBlock sb;
     string name;
     int size;
-    vector<INode> inodes;
+    array<INode, INODE_COUNT> inode_arr;
 };
-
 
 #endif //SOI6_CPP_VIRTUALDISK_H
 
