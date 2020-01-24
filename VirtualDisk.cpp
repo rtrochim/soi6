@@ -4,23 +4,30 @@
 
 #include "VirtualDisk.h"
 #include <iostream>
+#include <algorithm>
+#include <cmath>
 
 FILE *VirtualDisk::createVirtualDisk() {
-    ofstream wf(this->name,ios::out | ios::binary);
     char buffer[this->size];
+    FILE* disk = fopen("disk", "w+");
     for (int i = 0; i < this->size; i++) {
         buffer[i] = '\0';
     }
-
+    fwrite(buffer, 1, this->size, disk);
     std::cout << "Successfully created a virtual disk" << std::endl;
-    return fopen("disk", "w+");
+    return disk;
 }
 
-void VirtualDisk::readSuperBlock(FILE *file) {
-    superBlock sb;
-    fseek(file,0,0);
-    fread(&sb,sizeof(superBlock),1,file);
-    this->sb = sb;
+void VirtualDisk::readSuperBlock(FILE *disk) {
+    superBlock supblock;
+    fseek(disk, 0, 0);
+    fread(&supblock, sizeof(superBlock), 1, disk);
+    this->sb = supblock;
+}
+
+void VirtualDisk::saveSuperBlock(FILE *disk){
+    fseek(disk,0,0);
+    fwrite(&this->sb, sizeof(this->sb), 1, disk);
 }
 
 void VirtualDisk::writeFileToDisk(FILE *source, FILE *disk) {
@@ -31,47 +38,34 @@ void VirtualDisk::writeFileToDisk(FILE *source, FILE *disk) {
     char *buffer = (char *)malloc(filelen * sizeof(char));
     fread(buffer, filelen, 1, source);
     fclose(source);
-    auto *freeInode = std::find(this->inode_arr.begin(), this->inode_arr.end(), [&](const auto& inode) {
+    auto *freeInode = std::find_if(this->inode_arr.begin(), this->inode_arr.end(), [&](const auto& inode) {
         return inode.linksCount == 0;
     });
 
     cout << "freeInode: " << freeInode->linksCount << endl;
+    short blocksCount = ceil(filelen / BLOCK_SIZE);
     fseek(disk,2*BLOCK_SIZE,0);
     fwrite(buffer,filelen,1,disk);
     free(buffer);
+    readInodeList(disk);
+    for(auto inode : this->inode_arr){
+
+    }
 }
 
-void VirtualDisk::readInodeList(FILE *file) {
-    fseek(file, BLOCK_SIZE, 0);
-    INode *buffer;
-    std::copy(buffer, this->inode_arr.begin(), this->inode_arr.end());
-    fread(buffer, sizeof(INode), INODE_COUNT, file);
+void VirtualDisk::readInodeList(FILE *disk) {
+    INode *buffer = new INode[INODE_COUNT];
+    fseek(disk, INODE_BLOCK_INDEX * BLOCK_SIZE, 0);
+    fread(buffer, sizeof(INode), INODE_COUNT, disk);
+
+    for (int i=0; i<INODE_COUNT; i++) {
+        this->inode_arr[i] = buffer[i];
+    }
+
+    delete[] buffer;
 }
 
-const string &VirtualDisk::getName() const {
-    return name;
-}
-
-void VirtualDisk::setName(const string &name) {
-    VirtualDisk::name = name;
-}
-
-int VirtualDisk::getSize() const {
-    return size;
-}
-
-void VirtualDisk::setSize(int size) {
-    VirtualDisk::size = size;
-}
-
-const vector<INode> &VirtualDisk::getInodes() const {
-    return std::vector<INode>();
-}
-
-const superBlock &VirtualDisk::getSb() const {
-    return sb;
-}
-
-void VirtualDisk::setSb(const superBlock &sb) {
-    VirtualDisk::sb = sb;
+void VirtualDisk::saveInodeList(FILE *disk){
+    fseek(disk, BLOCK_SIZE * INODE_BLOCK_INDEX, 0);
+    fwrite(&this->inode_arr, sizeof(INode), INODE_COUNT, disk);
 }
