@@ -1,19 +1,17 @@
 #include <iostream>
 #include "VirtualDisk.h"
 
-void readFile(INode inode){}
-
 int main() {
     VirtualDisk vd("disk", 32768);
-    FILE *disk = vd.createVirtualDisk();
 
-    vd.saveSuperBlock(disk);
-    vd.saveInodeList(disk);
+    vd.saveSuperBlock();
+    vd.saveInodeList();
 
-    vd.readSuperBlock(disk);
-    vd.readInodeList(disk);
+    vd.readSuperBlock();
+    vd.readInodeList();
+
     FILE* source = fopen("../dupa_2500b", "rb");
-    vd.writeFileToDisk(source,disk);
+    vd.writeFileToDisk(source);
 
     // Copy file
 //    FILE *source = fopen("../dupa_2500b","r");

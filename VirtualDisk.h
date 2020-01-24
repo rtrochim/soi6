@@ -9,6 +9,8 @@
 #define INODE_BLOCK_INDEX 1
 #define INODE_COUNT 10
 
+#define ROOT_INODE_INDEX 0
+
 #define REGULAR_FILE 1
 #define DIRECTORY 2
 #define SYMBOLIC_LINK 3
@@ -23,8 +25,8 @@ using namespace std;
 
 struct superBlock {
     short blockSize = BLOCK_SIZE;
-    short freeBlocks = 0;
-    short freeInodes = INODE_COUNT;
+    short freeBlocks;
+    short freeInodes = INODE_COUNT - 1;
     short firstInode = FIRST_DATA_BLOCK_INDEX - 1;
 };
 
@@ -36,28 +38,24 @@ struct INode {
 };
 
 struct File {
-    INode inode;
+    short inode_index;
     string name;
-};
-
-struct DataBlock {
-    char buffer[BLOCK_SIZE];
 };
 
 class VirtualDisk {
 public:
     VirtualDisk(string name, int size);
-    FILE *createVirtualDisk();
-    void readSuperBlock(FILE* disk);
-    void readInodeList(FILE* disk);
-    void saveInodeList(FILE *disk);
-    void saveSuperBlock(FILE *disk);
-    void writeFileToDisk(FILE* source, FILE* disk);
+    void readSuperBlock();
+    void readInodeList();
+    void saveInodeList();
+    void saveSuperBlock();
+    void writeFileToDisk(FILE* source);
 
     superBlock sb;
     string name;
     int size;
     array<INode, INODE_COUNT> inode_arr;
+    FILE *disk;
 
     vector<short> findFreeBlocks(short requiredBlocksCount);
 };
