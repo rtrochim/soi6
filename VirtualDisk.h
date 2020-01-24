@@ -38,8 +38,9 @@ struct INode {
 };
 
 struct File {
-    short inode_index;
-    string name;
+    short inodeIndex;
+    short nameLength;
+    char name[60]; // Name of this file
 };
 
 class VirtualDisk {
@@ -49,7 +50,7 @@ public:
     void readInodeList();
     void saveInodeList();
     void saveSuperBlock();
-    void writeFileToDisk(FILE* source);
+    void writeFileToDisk(FILE* source, string dstPath);
 
     superBlock sb;
     string name;

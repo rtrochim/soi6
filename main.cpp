@@ -4,14 +4,14 @@
 int main() {
     VirtualDisk vd("disk", 32768);
 
-    vd.saveSuperBlock();
-    vd.saveInodeList();
-
     vd.readSuperBlock();
     vd.readInodeList();
 
     FILE* source = fopen("../dupa_2500b", "rb");
-    vd.writeFileToDisk(source);
+    vd.writeFileToDisk(source,"/");
+
+
+
 
     // Copy file
 //    FILE *source = fopen("../dupa_2500b","r");

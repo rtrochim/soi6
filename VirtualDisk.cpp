@@ -20,7 +20,7 @@ void VirtualDisk::saveSuperBlock() {
     fwrite(&this->sb, sizeof(this->sb), 1, this->disk);
 }
 
-void VirtualDisk::writeFileToDisk(FILE *source) {
+void VirtualDisk::writeFileToDisk(FILE *source, string dstPath) {
     // Load file contents to memory
     long filelen;
     fseek(source, 0, SEEK_END);
@@ -31,6 +31,7 @@ void VirtualDisk::writeFileToDisk(FILE *source) {
     fclose(source);
 
     // Find first free inode
+    readInodeList();
     auto *freeInode = std::find_if(this->inode_arr.begin() + 1, this->inode_arr.end(), [&](const auto& inode) {
         return inode.linksCount == 0;
     });
@@ -51,6 +52,23 @@ void VirtualDisk::writeFileToDisk(FILE *source) {
         filelen -= BLOCK_SIZE;
         freeInode->blocks[i] = blocksToWrite[i];
     }
+
+    // Add written to directory tree
+    this->inode_arr[ROOT_INODE_INDEX];
+
+    // Split path by '/'
+    vector<string> entriesToTraverse;
+    while(dstPath.length()){
+        short index = dstPath.find_first_of('/');
+        if (index == -1){
+            entriesToTraverse.push_back(dstPath);
+            break;
+        }
+        entriesToTraverse.push_back(dstPath.substr(0, index+1));
+        dstPath = dstPath.substr(index + 1,dstPath.length());
+    }
+
+
 
     freeInode->linksCount += 1;
     saveInodeList();
@@ -98,15 +116,18 @@ vector<short> VirtualDisk::findFreeBlocks(short requiredBlocksCount){
 }
 
 VirtualDisk::VirtualDisk(string name, int size) : name(std::move(name)), size(size){
-    this->sb.freeBlocks = floor(static_cast<float>(size)/BLOCK_SIZE);
+    this->sb.freeBlocks = floor(static_cast<float>(size)/BLOCK_SIZE) - 2;
     this->inode_arr[ROOT_INODE_INDEX].type = DIRECTORY;
     this->inode_arr[ROOT_INODE_INDEX].linksCount += 1;
     this->inode_arr[ROOT_INODE_INDEX].blocks[0] = FIRST_DATA_BLOCK_INDEX;
+    // Overwrite whole disk with zeros for debugging purpose
     char buffer[this->size];
     this->disk = fopen(this->name.c_str(), "w+");
     for (int i = 0; i < this->size; i++) {
         buffer[i] = '\0';
     }
     fwrite(buffer, 1, this->size, this->disk);
+    this->saveSuperBlock();
+    this->saveInodeList();
     std::cout << "Successfully created a virtual disk" << std::endl;
 }
