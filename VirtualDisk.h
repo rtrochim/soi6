@@ -9,6 +9,9 @@
 #define INODE_BLOCK_INDEX 1
 #define INODE_COUNT 10
 
+#define REGULAR_FILE 1
+#define DIRECTORY 2
+#define SYMBOLIC_LINK 3
 
 #include <string>
 #include <utility>
@@ -43,7 +46,7 @@ struct DataBlock {
 
 class VirtualDisk {
 public:
-    VirtualDisk(string name, int size) : name(std::move(name)), size(size) {};
+    VirtualDisk(string name, int size);
     FILE *createVirtualDisk();
     void readSuperBlock(FILE* disk);
     void readInodeList(FILE* disk);
