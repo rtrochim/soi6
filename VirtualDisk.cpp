@@ -62,7 +62,7 @@ void VirtualDisk::writeFileToDisk(string srcPath, string dstPath) {
     // Write file to disk block by block
     for(int i = 0; i < blocksToWrite.size(); i++) {
         char tempBuffer[BLOCK_SIZE];
-        memcpy(tempBuffer, buffer, min(static_cast<long>(BLOCK_SIZE),filelen));
+        memcpy(tempBuffer,buffer + i * BLOCK_SIZE, min(static_cast<long>(BLOCK_SIZE),filelen));
         fseek(this->disk, blocksToWrite[i] * BLOCK_SIZE ,0);
         fwrite(tempBuffer,1,min(static_cast<long>(BLOCK_SIZE),filelen),this->disk);
         filelen -= BLOCK_SIZE;
@@ -186,7 +186,7 @@ void VirtualDisk::copyFileFromDisk(string srcPath, string dstPath) {
                     // Read root file entries
                     fileEntries = readFileEntriesFromBlock(block);
                     // Find inode of next file entry
-                    auto next = find_if(fileEntries.begin(),fileEntries.end(), [&](const FileEntry &fileEntry){
+                    auto next = find_if(fileEntries.begin(),fileEntries.end() - 1, [&](const FileEntry &fileEntry){
                         return string(fileEntry.name) == entriesToTraverse[&entry - &entriesToTraverse[0]+1];
                     });
                     INode nextInode = this->inode_arr[next->inodeIndex];
