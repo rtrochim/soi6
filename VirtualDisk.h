@@ -46,13 +46,18 @@ struct FileEntry {
 class VirtualDisk {
 public:
     VirtualDisk(string name, int size);
+    ~VirtualDisk();
     void readSuperBlock();
     void readInodeList();
     void saveInodeList();
     void saveSuperBlock();
-    void writeFileToDisk(string srcPath, string dstPath);
-    void copyFileFromDisk(string srcPath, string dstPath);
+    void writeFileToDisk(const string& srcPath, string dstPath);
+    void copyFileFromDisk(const string& srcPath, const string& dstPath);
     vector<FileEntry> readFileEntriesFromBlock(short blockIndex);
+    int getInodeIndexForFile(string path, short inodeIndex = ROOT_INODE_INDEX);
+    void writeFileEntriesForInode(INode inode, vector<FileEntry> fileEntries);
+    void createDirectory(string path);
+//    void getDiskStatistics();
 
     SuperBlock sb;
     string name;
@@ -62,8 +67,9 @@ public:
 
     vector<short> findFreeBlocks(short requiredBlocksCount);
 
-    vector<string> splitPath(string path);
+    static vector<string> splitPath(string path, bool frontSlash = 1);
 
+    vector<FileEntry> readFileEntriesForInode(short inodeIndex);
 };
 
 #endif //SOI6_CPP_VIRTUALDISK_H

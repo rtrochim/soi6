@@ -6,8 +6,12 @@ int main() {
 
     vd.readSuperBlock();
     vd.readInodeList();
-
-    vd.writeFileToDisk("../lorem","/");
-    vd.copyFileFromDisk("/lorem", "./loremFromDisk");
+    vd.createDirectory("/usr/tmp/dupa");
+    vd.writeFileToDisk("../lorem1","/usr/tmp/");
+    vd.copyFileFromDisk("/usr/tmp/lorem1", "./lorem1FromDisk");
+    vd.writeFileToDisk("../lorem2","/usr/tmp/");
+    vd.copyFileFromDisk("/usr/tmp/lorem2", "./lorem2FromDisk");
+//    vd.writeFileToDisk("../lorem3","/usr/tmp/");
+//    vd.copyFileFromDisk("/usr/tmp/lorem3", "./lorem3FromDisk");
     return 0;
 }
