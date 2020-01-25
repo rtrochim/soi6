@@ -23,7 +23,7 @@
 
 using namespace std;
 
-struct superBlock {
+struct SuperBlock {
     short blockSize = BLOCK_SIZE;
     short freeBlocks;
     short freeInodes = INODE_COUNT - 1;
@@ -33,13 +33,13 @@ struct superBlock {
 struct INode {
     short type = 0;
     short size = 0;
-    short blocks[15] ={0};
+    short blocks[13] ={0};
     short linksCount = 0;
 };
 
-struct File {
+struct FileEntry {
     short inodeIndex;
-    short nameLength;
+    short recLength = 0;
     char name[60]; // Name of this file
 };
 
@@ -50,15 +50,20 @@ public:
     void readInodeList();
     void saveInodeList();
     void saveSuperBlock();
-    void writeFileToDisk(FILE* source, string dstPath);
+    void writeFileToDisk(string srcPath, string dstPath);
+    void copyFileFromDisk(string srcPath, string dstPath);
+    vector<FileEntry> readFileEntriesFromBlock(short blockIndex);
 
-    superBlock sb;
+    SuperBlock sb;
     string name;
     int size;
     array<INode, INODE_COUNT> inode_arr;
     FILE *disk;
 
     vector<short> findFreeBlocks(short requiredBlocksCount);
+
+    vector<string> splitPath(string path);
+
 };
 
 #endif //SOI6_CPP_VIRTUALDISK_H
