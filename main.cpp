@@ -3,15 +3,16 @@
 
 int main() {
     VirtualDisk vd("disk", 32768);
-
     vd.readSuperBlock();
     vd.readInodeList();
-    vd.createDirectory("/usr/tmp/dupa");
-    vd.writeFileToDisk("../lorem1","/usr/tmp/");
-    vd.copyFileFromDisk("/usr/tmp/lorem1", "./lorem1FromDisk");
-    vd.writeFileToDisk("../lorem2","/usr/tmp/");
+    vd.getDiskStatistics();
+    vd.createDirectory("/usr/tmp/local");
+    vd.writeFileToDisk("../lorem1","/usr");
+    vd.copyFileFromDisk("/usr/lorem1", "./lorem1FromDisk");
+    vd.writeFileToDisk("../lorem2","/usr/tmp");
     vd.copyFileFromDisk("/usr/tmp/lorem2", "./lorem2FromDisk");
-//    vd.writeFileToDisk("../lorem3","/usr/tmp/");
-//    vd.copyFileFromDisk("/usr/tmp/lorem3", "./lorem3FromDisk");
+    vd.writeFileToDisk("../lorem3","/usr/tmp/local");
+    vd.copyFileFromDisk("/usr/tmp/local/lorem3", "./lorem3FromDisk");
+//    vd.removeFile("/usr/tmp/local/lorem3");
     return 0;
 }

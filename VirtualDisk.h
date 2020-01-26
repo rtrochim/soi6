@@ -55,9 +55,9 @@ public:
     void copyFileFromDisk(const string& srcPath, const string& dstPath);
     vector<FileEntry> readFileEntriesFromBlock(short blockIndex);
     int getInodeIndexForFile(string path, short inodeIndex = ROOT_INODE_INDEX);
-    void writeFileEntriesForInode(INode inode, vector<FileEntry> fileEntries);
+    void writeFileEntriesForInode(INode &inode, vector<FileEntry> &fileEntries);
     void createDirectory(string path);
-//    void getDiskStatistics();
+    void getDiskStatistics();
 
     SuperBlock sb;
     string name;
@@ -70,6 +70,8 @@ public:
     static vector<string> splitPath(string path, bool frontSlash = 1);
 
     vector<FileEntry> readFileEntriesForInode(short inodeIndex);
+
+    void removeFile(string path);
 };
 
 #endif //SOI6_CPP_VIRTUALDISK_H

@@ -71,18 +71,10 @@ void VirtualDisk::writeFileToDisk(const string& srcPath, string dstPath) {
     }
 
     // Split path by '/'
-    vector<string> entriesToTraverse = splitPath(std::move(dstPath));
-
+    vector<string> entriesToTraverse = splitPath(dstPath);
+    int dstInodeIndex = getInodeIndexForFile(dstPath);
     // Read existing file entries
-    vector<FileEntry> fileEntries;
-    if(this->inode_arr[ROOT_INODE_INDEX].size > 0){
-        for(auto datablock : this->inode_arr[ROOT_INODE_INDEX].blocks){
-            if(datablock){
-                vector<FileEntry> temp = readFileEntriesFromBlock(datablock);
-                fileEntries.insert(fileEntries.end(), temp.begin(), temp.end());
-            }
-        }
-    }
+    vector<FileEntry> fileEntries = readFileEntriesForInode(dstInodeIndex);
 
     // Add new for our file
     FileEntry f{};
@@ -100,8 +92,8 @@ void VirtualDisk::writeFileToDisk(const string& srcPath, string dstPath) {
         f.recLength = BLOCK_SIZE - sum;
     }
     fileEntries.push_back(f);
-    writeFileEntriesForInode(this->inode_arr[ROOT_INODE_INDEX], fileEntries);
-    this->inode_arr[ROOT_INODE_INDEX].size += 64;
+    writeFileEntriesForInode(this->inode_arr[dstInodeIndex], fileEntries);
+    this->inode_arr[dstInodeIndex].size += 64;
 
     // Update inode array
     freeInode.linksCount += 1;
@@ -178,7 +170,6 @@ vector<string> VirtualDisk::splitPath(string path, bool frontSlash) {
 
 void VirtualDisk::copyFileFromDisk(const string& srcPath, const string& dstPath) {
     readInodeList();
-    vector<string> entriesToTraverse = splitPath(srcPath);
     int inodeIndex = getInodeIndexForFile(srcPath);
     char buffer[this->inode_arr[inodeIndex].size];
     int length = this->inode_arr[inodeIndex].size;
@@ -207,6 +198,7 @@ vector<FileEntry> VirtualDisk::readFileEntriesFromBlock(short blockIndex){
     FileEntry buffer;
     fseek(this->disk,blockIndex * BLOCK_SIZE, 0);
 
+    // TODO: infinite loop if no entries found
     while(offset < BLOCK_SIZE){
         fread(&buffer, sizeof(FileEntry),1,this->disk);
         result.push_back(buffer);
@@ -227,10 +219,10 @@ vector<FileEntry> VirtualDisk::readFileEntriesForInode(short inodeIndex){
     return result;
 }
 
-void VirtualDisk::writeFileEntriesForInode(INode inode, vector<FileEntry> fileEntries) {
-    int blocksCount = 0;
+void VirtualDisk::writeFileEntriesForInode(INode &inode, vector<FileEntry> &fileEntries) {
+    int entriesCounter = 0;
     for (auto block : inode.blocks){
-        if(block){
+        if (block) {
             auto offset = block*BLOCK_SIZE;
             if(fileEntries.empty()){
                 break;
@@ -239,9 +231,9 @@ void VirtualDisk::writeFileEntriesForInode(INode inode, vector<FileEntry> fileEn
                 fseek(this->disk,offset,0);
                 fwrite(&entry,sizeof(entry),1,this->disk);
                 offset += sizeof(entry);
-                blocksCount++;
-                if (blocksCount == 15) {
-                    blocksCount = 0;
+                entriesCounter++;
+                if (entriesCounter == 15) {
+                    entriesCounter = 0;
                     break;
                 }
             }
@@ -249,9 +241,15 @@ void VirtualDisk::writeFileEntriesForInode(INode inode, vector<FileEntry> fileEn
             fileEntries.erase(fileEntries.begin(), fileEntries.begin() + index);
         }
     }
-    // TODO Allocate additional blocks if more file entries
-    if(!fileEntries.empty()){
-
+    if(fileEntries.size() != 0){
+        short blockIndex = findFreeBlocks(1)[0];
+        for(auto &block : inode.blocks){
+            if(!block){
+                block = blockIndex;
+                writeFileEntriesForInode(inode,fileEntries);
+                return;
+            }
+        }
     }
 }
 
@@ -259,12 +257,18 @@ int VirtualDisk::getInodeIndexForFile(string path, short inodeIndex) {
     if(path == "/"){
         return 0;
     }
+
     vector<string> entriesToTraverse = splitPath(path, false);
+    for(auto &entry : entriesToTraverse){
+        if(entry.size() != 1 && entry[entry.size() - 1] == '/'){
+            entry = entry.substr(0,entry.size() -1);
+        }
+    }
     vector<FileEntry> fileEntries;
-    for(auto block : this->inode_arr[inodeIndex].blocks){
-        if(block && this->inode_arr[inodeIndex].size){
+    for (auto block : this->inode_arr[inodeIndex].blocks){
+        if(block && this->inode_arr[inodeIndex].size) { // TODO: Bug alert: may be here - when allocating a new dir, size remains 0
             // Read all file entries
-            fileEntries = readFileEntriesFromBlock(block);
+            fileEntries = readFileEntriesFromBlock(block); // TODO: empty space
             // Find inode of next file entry
             auto next = find_if(fileEntries.begin(),fileEntries.end() - 1, [&](const FileEntry &fileEntry){
                 return string(fileEntry.name) == entriesToTraverse[0];
@@ -275,9 +279,23 @@ int VirtualDisk::getInodeIndexForFile(string path, short inodeIndex) {
                 if(nextInode.type == REGULAR_FILE){
                     return next->inodeIndex;
                 } else if(nextInode.type == DIRECTORY) {
+                    if(readFileEntriesForInode(next->inodeIndex).empty()){
+                        return next->inodeIndex;
+                    }
                     entriesToTraverse.erase(entriesToTraverse.begin());
+                    if(entriesToTraverse.empty()){
+                        return next->inodeIndex;
+                    }
                     return getInodeIndexForFile(
-                            std::accumulate(entriesToTraverse.begin(), entriesToTraverse.end(), std::string("")),
+                            std::accumulate(entriesToTraverse.begin(), entriesToTraverse.end(), std::string(""), [&](string acc, const string &entr) {
+                                string tmp = string(acc + entr);
+                                vector<string>::iterator it = find(entriesToTraverse.begin(), entriesToTraverse.end(), entr);
+                                if (distance(entriesToTraverse.begin(), it) != entriesToTraverse.size() - 1) {
+                                    tmp.append("/");
+                                }
+
+                                return tmp;
+                            }),
                             next->inodeIndex);
                 }
             }
@@ -287,26 +305,34 @@ int VirtualDisk::getInodeIndexForFile(string path, short inodeIndex) {
 }
 
 void VirtualDisk::createDirectory(string path) {
-    readInodeList();
     vector<string> entriesToTraverse = splitPath(path);
     string acc = "";
+    short previousInodeIndex = 0;
 
     for (auto &entry : entriesToTraverse) {
-        string tempPath = string(acc + entry);
-        short inodeIndex = getInodeIndexForFile(tempPath);
+        readInodeList();
+        if (entry == "/") {
+            acc = "/";
+            continue;
+        }
+
+        string tempPath = entry.substr(0,entry.find_last_of('/'));
+        short inodeIndex = getInodeIndexForFile(tempPath, previousInodeIndex);
         if (inodeIndex == -1) {
             // create directory with path 'acc + entry'
-            short idx = getInodeIndexForFile(acc);
+            string parentPath = acc;
+            // short parentInodeIndex = getInodeIndexForFile(parentPath, previousInodeIndex);
+            short parentInodeIndex = previousInodeIndex;
             vector<FileEntry> entries;
-            if(this->inode_arr[idx].size){
-               entries = readFileEntriesForInode(idx);
+            if(this->inode_arr[parentInodeIndex].size){
+               entries = readFileEntriesForInode(parentInodeIndex);
             }
 
             FileEntry newEntry{};
-            strcpy(newEntry.name, string(acc + entry).c_str()); // Copy directory name
+            string newName = entry.substr(0,entry.find_last_of('/'));
+            strcpy(newEntry.name, newName.c_str()); // Copy directory name
             // Assign a new INode
             // Find first free inode
-            readInodeList();
 
             INode freeInode;
             int freeInodeIndex = -1;
@@ -326,6 +352,7 @@ void VirtualDisk::createDirectory(string path) {
 
             freeInode.size = 0;
             freeInode.type = DIRECTORY;
+            freeInode.linksCount = 1;
 
             // Calculate newEntry recLength
             if (entries.empty()) {
@@ -338,17 +365,44 @@ void VirtualDisk::createDirectory(string path) {
                 sum %= BLOCK_SIZE;
                 newEntry.recLength = BLOCK_SIZE - sum;
             }
-
+            newEntry.inodeIndex = freeInodeIndex;
             entries.push_back(newEntry);
 
             // Save to virtual disk
-            writeFileEntriesForInode(freeInode, entries);
+            writeFileEntriesForInode(this->inode_arr[parentInodeIndex], entries); // May break stuff
+            this->inode_arr[parentInodeIndex].size += 64;
             this->inode_arr[freeInodeIndex] = freeInode;
             saveInodeList();
+            previousInodeIndex = freeInodeIndex;
         } else {
-            // directory is valid - proceed deeper
-            acc.append(entry);
+            previousInodeIndex = inodeIndex;
         }
+        acc = entry == "/" ? "/" : entry.substr(0,entry.find_last_of('/'));
+    }
+}
+
+void VirtualDisk::getDiskStatistics() {
+    readInodeList();
+    int size = 0;
+    for (int i =0; i<INODE_COUNT; i++) {
+        size += this->inode_arr[i].size;
+    }
+
+    size += 2 * BLOCK_SIZE; // Add superBlock + inodes table
+    cout << "Disk usage: " << size << " / " << this->size << " (" << static_cast<float>(size)/static_cast<float>(this->size) * 100 << "%)" <<endl;
+}
+
+void VirtualDisk::removeFile(string path){
+    readInodeList();
+    int index = getInodeIndexForFile(path);
+    string parentPath = path.substr(0,path.find_last_of('/'));
+    string parentParentPath = parentPath.substr(0,parentPath.find_last_of('/'));
+    int parentIndex = getInodeIndexForFile(parentParentPath);
+    this->inode_arr[index].linksCount -=1;
+    if(!this->inode_arr[index].linksCount){
+        this->inode_arr[index].size = 0;
+        this->inode_arr[index].type = 0;
+        memset(this->inode_arr[index].blocks, 0, sizeof (this->inode_arr[index].blocks));
     }
 }
 
