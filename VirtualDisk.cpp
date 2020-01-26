@@ -633,21 +633,35 @@ void VirtualDisk::addBytesToFile(string path, string newBytes, short startIndex)
     saveInodeList();
 }
 
-VirtualDisk::VirtualDisk(string name, int size) : name(std::move(name)), size(size){
-    this->sb.freeBlocks = floor(static_cast<float>(size)/BLOCK_SIZE) - 2;
-    this->inode_arr[ROOT_INODE_INDEX].type = DIRECTORY;
-    this->inode_arr[ROOT_INODE_INDEX].linksCount += 1;
-    this->inode_arr[ROOT_INODE_INDEX].blocks[0] = FIRST_DATA_BLOCK_INDEX;
-    // Overwrite whole disk with zeros for debugging purpose
-    char buffer[this->size];
-    this->disk = fopen(this->name.c_str(), "w+");
-    for (int i = 0; i < this->size; i++) {
-        buffer[i] = '\0';
+VirtualDisk::VirtualDisk(string name, int size) : name(name), size(size){
+    if (FILE *file = fopen(name.c_str(), "r")) {
+        fclose(file);
+        this->disk = fopen(name.c_str(), "a+");
+        this->readInodeList();
+        this->readSuperBlock();
+
+        fseek(file,0,SEEK_END);
+        int filesize = static_cast<int>(ftell(file));
+        this->size = filesize;
+        rewind(file);
+        std::cout << "Opened existing Virtualdisk " << name << std::endl;
+    } else {
+        this->sb.freeBlocks = floor(static_cast<float>(size)/BLOCK_SIZE) - 2;
+        this->inode_arr[ROOT_INODE_INDEX].type = DIRECTORY;
+        this->inode_arr[ROOT_INODE_INDEX].linksCount += 1;
+        this->inode_arr[ROOT_INODE_INDEX].blocks[0] = FIRST_DATA_BLOCK_INDEX;
+        // Overwrite whole disk with zeros for debugging purpose
+        char buffer[this->size];
+        this->disk = fopen(this->name.c_str(), "w+");
+        for (int i = 0; i < this->size; i++) {
+            buffer[i] = '\0';
+        }
+        fwrite(buffer, 1, this->size, this->disk);
+        this->saveSuperBlock();
+        this->saveInodeList();
+        std::cout << "Created Virtualdisk " << name << std::endl;
     }
-    fwrite(buffer, 1, this->size, this->disk);
-    this->saveSuperBlock();
-    this->saveInodeList();
-    std::cout << "Successfully created a virtual disk" << std::endl;
+
 }
 
 VirtualDisk::~VirtualDisk() {

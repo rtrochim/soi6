@@ -72,11 +72,16 @@ vector<string> splitCommand2(string str)
 int main() {
     string option;
     string name;
-    string size;
+    string size = "0";
     cout << "Virtual disk name: ";
     getline(cin, name);
-    cout << "Disk size: ";
-    getline(cin, size);
+    FILE *file = fopen(name.c_str(), "r");
+    if (file) {
+        fclose(file);
+    } else {
+        cout << "Disk size: ";
+        getline(cin, size);
+    }
 
     VirtualDisk vd(name, stoi(size));
     vd.readSuperBlock();
