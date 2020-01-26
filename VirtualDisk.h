@@ -58,6 +58,10 @@ public:
     void writeFileEntriesForInode(INode &inode, vector<FileEntry> &fileEntries);
     void createDirectory(string path);
     void getDiskStatistics();
+    void removeBytesFromFile(string path, short startIndex, short endIndex);
+    void addBytesToFile(string path, string newBytes, short startIndex);
+
+    void printDirectories(vector <FileEntry> entries, const string& pathAcc = "/");
 
     SuperBlock sb;
     string name;
@@ -72,6 +76,10 @@ public:
     vector<FileEntry> readFileEntriesForInode(short inodeIndex);
 
     void removeFile(string path);
+
+    void link(string newFile, string existingFile);
+
+    void removeLink(const string& linkPath);
 };
 
 #endif //SOI6_CPP_VIRTUALDISK_H
