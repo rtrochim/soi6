@@ -92,7 +92,7 @@ void VirtualDisk::writeFileToDisk(const string& srcPath, string dstPath) {
         f.recLength = BLOCK_SIZE - sum;
     }
     fileEntries.push_back(f);
-    writeFileEntriesForInode(this->inode_arr[dstInodeIndex], fileEntries);
+
     this->inode_arr[dstInodeIndex].size += 64;
 
     // Update inode array
@@ -102,6 +102,9 @@ void VirtualDisk::writeFileToDisk(const string& srcPath, string dstPath) {
     this->sb.freeInodes -= 1;
     this->sb.freeBlocks -= blocksToWrite.size();
     saveSuperBlock();
+    readInodeList();
+    writeFileEntriesForInode(this->inode_arr[dstInodeIndex], fileEntries);
+    saveInodeList();
     free(buffer);
 }
 
@@ -396,13 +399,34 @@ void VirtualDisk::removeFile(string path){
     readInodeList();
     int index = getInodeIndexForFile(path);
     string parentPath = path.substr(0,path.find_last_of('/'));
-    string parentParentPath = parentPath.substr(0,parentPath.find_last_of('/'));
-    int parentIndex = getInodeIndexForFile(parentParentPath);
+    int parentIndex = getInodeIndexForFile(parentPath);
     this->inode_arr[index].linksCount -=1;
     if(!this->inode_arr[index].linksCount){
         this->inode_arr[index].size = 0;
         this->inode_arr[index].type = 0;
         memset(this->inode_arr[index].blocks, 0, sizeof (this->inode_arr[index].blocks));
+    }
+    vector<FileEntry> entries = readFileEntriesForInode(parentIndex);
+    string filename = splitPath(path).back();
+    auto it = remove_if(entries.begin(), entries.end(), [&](const FileEntry &entry) {
+        return strcmp(entry.name, filename.c_str());
+    });
+    entries.erase(it);
+    if(entries.empty()){
+        this->inode_arr[parentIndex].size = 0;
+        memset(this->inode_arr[parentIndex].blocks, 0, sizeof (this->inode_arr[index].blocks));
+    } else {
+        int counter = 0;
+        int sum = 0;
+        for (auto &entry : entries) {
+            if (counter < entries.size() - 1) {
+                entry.recLength = 64;
+                sum += entry.recLength;
+                counter++;
+            } else {
+                entry.recLength = BLOCK_SIZE - (sum%BLOCK_SIZE);
+            }
+        }
     }
 }
 
